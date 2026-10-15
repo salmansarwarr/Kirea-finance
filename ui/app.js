@@ -322,7 +322,60 @@ const walletFullAddressText = document.getElementById("walletFullAddressText");
 const walletShortHashVal = document.getElementById("walletShortHashVal");
 const walletBalanceVal = document.getElementById("walletBalanceVal");
 
+const walletProviderVal = document.getElementById("walletProviderVal");
+const connectModal = document.getElementById("connectModal");
+const closeConnectModalBtn = document.getElementById("closeConnectModalBtn");
+const btnConnectJoyId = document.getElementById("btnConnectJoyId");
+const btnConnectDemo = document.getElementById("btnConnectDemo");
+const connectError = document.getElementById("connectError");
+
 let currentWallet = null;
+
+// ---------------------------------------------------------------------------
+// JoyID (passkey wallet) integration — CKB testnet
+// SDK is loaded lazily from esm.sh; connect() opens the JoyID popup.
+// ---------------------------------------------------------------------------
+const JOYID_SDK_URL = "https://esm.sh/@joyid/ckb@1.1.4";
+const CKB_UTILS_URL = "https://esm.sh/@nervosnetwork/ckb-sdk-utils@0.109.5";
+const JOYID_STORAGE_KEY = "kirea.joyid.address";
+
+let joyidSdkPromise = null;
+
+function loadJoyIdSdk() {
+  if (!joyidSdkPromise) {
+    joyidSdkPromise = import(JOYID_SDK_URL).then((sdk) => {
+      sdk.initConfig({
+        name: "Kirea Finance",
+        logo: `${window.location.origin}/image.png`,
+        joyidAppURL: "https://testnet.joyid.dev",
+        network: "testnet",
+        rpcURL: ACTIVE_RPC_URL
+      });
+      return sdk;
+    }).catch((err) => {
+      joyidSdkPromise = null; // allow retry
+      throw err;
+    });
+  }
+  return joyidSdkPromise;
+}
+
+// Total capacity (CKB) of all live cells locked by the address, via the node's indexer.
+async function fetchAddressBalance(address) {
+  try {
+    const utils = await import(CKB_UTILS_URL);
+    const lock = utils.addressToScript(address);
+    const { result } = await callRpc("get_cells_capacity", [{
+      script: { code_hash: lock.codeHash, hash_type: lock.hashType, args: lock.args },
+      script_type: "lock"
+    }]);
+    const ckb = Number(BigInt(result.capacity) / 100000000n);
+    return ckb.toLocaleString();
+  } catch (err) {
+    console.warn("Balance lookup failed:", err);
+    return "—";
+  }
+}
 
 // Asset Switch
 const btnReceiptAsset = document.getElementById("btnReceiptAsset");
@@ -632,8 +685,19 @@ async function startWalletCreation() {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Generate a brand new unique wallet address
-  currentWallet = generateRandomWallet();
+  const wallet = generateRandomWallet();
+  wallet.provider = "Demo wallet";
+  applyConnectedWallet(wallet);
 
+  showToast(`✓ Testnet wallet created: ${wallet.shortHex}`);
+  setTimeout(() => {
+    showToast(`Funded with ${wallet.balance} testnet CKB`);
+  }, 1200);
+}
+
+// Shared UI update for any connected wallet (demo or JoyID)
+function applyConnectedWallet(wallet) {
+  currentWallet = wallet;
   isCreatingWallet = false;
   walletConnected = true;
 
@@ -647,35 +711,100 @@ async function startWalletCreation() {
       <line x1="2" y1="10" x2="22" y2="10"></line>
     `;
   }
-  walletAddressDisplay.textContent = currentWallet.shortHex;
+  walletAddressDisplay.textContent = wallet.shortHex;
   if (walletChevron) walletChevron.style.display = "inline-block";
 
-  // Update modal data
-  if (walletShortHashVal) walletShortHashVal.textContent = currentWallet.shortHex;
-  if (walletFullAddressText) walletFullAddressText.textContent = currentWallet.shortAddress;
-  if (walletBalanceVal) walletBalanceVal.textContent = currentWallet.balance;
-  if (walletFullAddress) {
-    walletFullAddress.setAttribute("data-full", currentWallet.fullAddress);
-  }
+  if (walletShortHashVal) walletShortHashVal.textContent = wallet.shortHex;
+  if (walletFullAddressText) walletFullAddressText.textContent = wallet.shortAddress;
+  if (walletBalanceVal) walletBalanceVal.textContent = wallet.balance;
+  if (walletProviderVal) walletProviderVal.textContent = wallet.provider || "Demo wallet";
+  if (walletFullAddress) walletFullAddress.setAttribute("data-full", wallet.fullAddress);
 
   if (walletStatusDot) walletStatusDot.className = "status-dot online";
   if (walletStatusLabel) walletStatusLabel.textContent = "WALLET CONNECTED";
-
-  showToast(`✓ Testnet wallet created: ${currentWallet.shortHex}`);
-  setTimeout(() => {
-    showToast(`Funded with ${currentWallet.balance} testnet CKB`);
-  }, 1200);
 }
 
-function disconnectWallet() {
-  walletConnected = false;
-  isCreatingWallet = false;
-  currentWallet = null;
+function setWalletConnecting(label) {
+  walletBtn.disabled = true;
+  walletBtn.classList.add("creating");
+  walletBtn.classList.remove("not-connected");
+  if (walletIcon) {
+    walletIcon.classList.add("spin-icon");
+    walletIcon.innerHTML = `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-dasharray="32" stroke-linecap="round" fill="none"></circle>`;
+  }
+  walletAddressDisplay.textContent = label;
+  if (walletChevron) walletChevron.style.display = "none";
+  if (walletStatusDot) walletStatusDot.className = "status-dot creating";
+  if (walletStatusLabel) walletStatusLabel.textContent = "CONNECTING...";
+}
 
+function joyIdWalletFromAddress(address, balance) {
+  return {
+    fullHex: address,
+    shortHex: `${address.slice(0, 9)}...${address.slice(-6)}`,
+    fullAddress: address,
+    shortAddress: `${address.slice(0, 13)}...${address.slice(-8)}`,
+    balance,
+    provider: "JoyID"
+  };
+}
+
+async function connectJoyId() {
+  if (isCreatingWallet || walletConnected) return;
+  isCreatingWallet = true;
+  connectError.setAttribute("hidden", "");
+  btnConnectJoyId.disabled = true;
+  setWalletConnecting("Waiting for JoyID...");
+
+  try {
+    const sdk = await loadJoyIdSdk();
+    const authData = await sdk.connect();
+    const address = authData.address;
+    if (!address) throw new Error("JoyID did not return a CKB address");
+
+    try { localStorage.setItem(JOYID_STORAGE_KEY, address); } catch (_) { /* storage unavailable */ }
+
+    applyConnectedWallet(joyIdWalletFromAddress(address, "…"));
+    connectModal.setAttribute("hidden", "");
+    showToast(`✓ JoyID connected: ${currentWallet.shortHex}`);
+
+    const balance = await fetchAddressBalance(address);
+    if (currentWallet && currentWallet.fullAddress === address) {
+      currentWallet.balance = balance;
+      if (walletBalanceVal) walletBalanceVal.textContent = balance;
+    }
+  } catch (err) {
+    console.warn("JoyID connect failed:", err);
+    isCreatingWallet = false;
+    walletConnected = false;
+    currentWallet = null;
+    resetWalletButton();
+    const msg = err && err.message ? err.message : "Connection cancelled";
+    connectError.textContent = `JoyID connection failed: ${msg}`;
+    connectError.removeAttribute("hidden");
+  } finally {
+    isCreatingWallet = false;
+    btnConnectJoyId.disabled = false;
+  }
+}
+
+// Restore a previous JoyID session (address only — no signing capability is needed to display it)
+async function restoreJoyIdSession() {
+  let address = null;
+  try { address = localStorage.getItem(JOYID_STORAGE_KEY); } catch (_) { return; }
+  if (!address) return;
+  applyConnectedWallet(joyIdWalletFromAddress(address, "…"));
+  const balance = await fetchAddressBalance(address);
+  if (currentWallet && currentWallet.fullAddress === address) {
+    currentWallet.balance = balance;
+    if (walletBalanceVal) walletBalanceVal.textContent = balance;
+  }
+}
+
+function resetWalletButton() {
   walletBtn.disabled = false;
   walletBtn.classList.add("not-connected");
   walletBtn.classList.remove("creating");
-
   if (walletIcon) {
     walletIcon.classList.remove("spin-icon");
     walletIcon.innerHTML = `
@@ -683,12 +812,19 @@ function disconnectWallet() {
       <line x1="2" y1="10" x2="22" y2="10"></line>
     `;
   }
-  walletAddressDisplay.textContent = "Create / Connect Wallet";
+  walletAddressDisplay.textContent = "Connect Wallet";
   if (walletChevron) walletChevron.style.display = "none";
-
   if (walletStatusDot) walletStatusDot.className = "status-dot disconnected";
   if (walletStatusLabel) walletStatusLabel.textContent = "NOT CONNECTED";
+}
 
+function disconnectWallet() {
+  walletConnected = false;
+  isCreatingWallet = false;
+  currentWallet = null;
+  try { localStorage.removeItem(JOYID_STORAGE_KEY); } catch (_) { /* storage unavailable */ }
+
+  resetWalletButton();
   walletModal.setAttribute("hidden", "");
   showToast("Wallet disconnected");
 }
@@ -696,8 +832,8 @@ function disconnectWallet() {
 // Main stage action button (Simulate with Live RPC Verification)
 stageActionBtn.addEventListener("click", async () => {
   if (!walletConnected) {
-    showToast("⚠️ Wallet required: Creating testnet wallet first...");
-    await startWalletCreation();
+    showToast("⚠️ Wallet required: connect a wallet first");
+    openConnectModal();
     return;
   }
 
@@ -760,11 +896,29 @@ cellLockVal.addEventListener("click", () => {
 // Wallet button click: create if disconnected, open modal if connected
 walletBtn.addEventListener("click", () => {
   if (!walletConnected) {
-    startWalletCreation();
+    openConnectModal();
   } else {
     walletModal.removeAttribute("hidden");
   }
 });
+
+function openConnectModal() {
+  connectError.setAttribute("hidden", "");
+  connectModal.removeAttribute("hidden");
+  loadJoyIdSdk().catch(() => {}); // warm up so the popup opens within the click gesture
+}
+
+btnConnectJoyId.addEventListener("click", connectJoyId);
+btnConnectDemo.addEventListener("click", () => {
+  connectModal.setAttribute("hidden", "");
+  startWalletCreation();
+});
+closeConnectModalBtn.addEventListener("click", () => connectModal.setAttribute("hidden", ""));
+connectModal.addEventListener("click", (e) => {
+  if (e.target === connectModal) connectModal.setAttribute("hidden", "");
+});
+
+restoreJoyIdSession();
 
 // Wallet modal controls
 closeWalletModalBtn.addEventListener("click", () => {
@@ -847,6 +1001,7 @@ document.addEventListener("keydown", (e) => {
     txInspectorModal.setAttribute("hidden", "");
     rpcModal.setAttribute("hidden", "");
     walletModal.setAttribute("hidden", "");
+    connectModal.setAttribute("hidden", "");
   }
 });
 

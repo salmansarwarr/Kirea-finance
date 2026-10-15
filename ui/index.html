@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CKB RWA Lending — Fixed-Term Lending on Nervos</title>
-  <meta name="description" content="A fixed-term lending flow for self-originated real-world asset claims native on CKB, gated by KYC attestation.">
+  <title>Kirea Finance — Real-World Asset Lending on CKB</title>
+  <meta name="description" content="Open-source infrastructure for real-world asset lending on Nervos CKB testnet.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,12 +14,16 @@
   <div class="app-container">
     <!-- TOP NAVIGATION -->
     <header class="top-nav">
-      <div class="nav-brand">
-        <span class="brand-badge"></span>
-        <span class="brand-text">LENDING_FLOW</span>
-      </div>
+      <a class="nav-brand" href="/" aria-label="Kirea Finance home">
+        <span class="logo-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="brand-text">Kirea<span class="brand-muted"> Finance</span></span>
+      </a>
 
       <div class="nav-actions">
+        <nav class="nav-links" aria-label="Main navigation">
+          <a href="#how-it-works" id="navHowItWorks">How it works</a>
+          <a href="https://github.com/salmansarwarr/Kirea-finance" target="_blank" rel="noopener noreferrer">View source</a>
+        </nav>
         <div class="rpc-status-pill" id="rpcStatusBtn" title="Click to view CKB Testnet RPC Node details">
           <span class="status-dot online pulse" id="rpcStatusDot"></span>
           <span class="rpc-label">CKB TESTNET: <strong id="rpcBlockDisplay">SYNCING...</strong></span>
@@ -34,7 +38,7 @@
             <rect x="2" y="5" width="20" height="14" rx="3"></rect>
             <line x1="2" y1="10" x2="22" y2="10"></line>
           </svg>
-          <span class="wallet-address" id="walletAddressDisplay">Create / Connect Wallet</span>
+          <span class="wallet-address" id="walletAddressDisplay">Connect Wallet</span>
           <svg class="chevron-icon" id="walletChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
@@ -44,39 +48,59 @@
 
     <!-- HERO SECTION -->
     <main class="main-content">
-      <section class="hero-section">
-        <div class="hero-left">
-          <div class="tag-badge">
-            <span class="tag-dot"></span>
-            <span>TESTNET PROTOTYPE</span>
-          </div>
-          <h1 class="hero-title">
-            Lend against a claim.<br>
-            <span class="highlight-gold">Native on CKB.</span>
+      <section class="hero-section" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-line"></span>RWA LENDING · NERVOS CKB · TESTNET</p>
+          <h1 class="hero-title" id="hero-title">
+            <span>Real-World Asset Lending.</span>
+            <span class="highlight-gold">Native to CKB.</span>
           </h1>
           <p class="hero-subtitle">
-            A fixed-term lending flow for self-originated real-world asset claims —
-            without a bridge, oracle, or external custody dependency.
+            Kirea Finance is open-source infrastructure for lending against verified real-world asset claims on Nervos CKB. Built around CKB's Cell model, it combines on-chain collateral locking, fixed-term loans, and <strong>compliance-ready, issuer-revocable KYC attestations</strong>, with no bridges or oracles.
           </p>
+          <div class="hero-cta-group">
+            <a class="btn btn-primary" id="viewTestnetBtn" href="https://pudge.explorer.nervos.org" target="_blank" rel="noopener noreferrer">
+              View on testnet
+              <svg class="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </a>
+            <button class="btn btn-secondary" id="openHowItWorksBtn">How it works</button>
+          </div>
+          <div class="stat-strip" aria-label="Protocol properties">
+            <div class="protocol-stat"><span class="mono-label">BRIDGE</span><strong>None</strong></div>
+            <div class="protocol-stat"><span class="mono-label">ORACLE</span><strong>None</strong></div>
+            <div class="protocol-stat"><span class="mono-label">TERM</span><strong>Fixed</strong></div>
+            <div class="protocol-stat"><span class="mono-label">NETWORK</span><strong>Testnet</strong></div>
+          </div>
         </div>
 
-        <div class="hero-cta-group">
-          <button class="btn btn-secondary" id="openHowItWorksBtn" id="btnHowItWorks">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            How it works
-          </button>
-          <a class="btn btn-primary" id="viewSourceBtn" href="https://github.com/salmansarwarr/Kirea-finance" target="_blank" rel="noopener noreferrer">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-            View source
-            <span class="external-arrow">↗</span>
-          </a>
+        <div class="hero-visual">
+          <div class="visual-kicker"><span class="kicker-dot"></span>LIVE EXAMPLE <span class="visual-kicker-divider"></span> TESTNET</div>
+          <article class="loan-card" aria-label="Example Invoice 1042 loan">
+            <div class="loan-card-topline">
+              <div>
+                <p class="mono-label">ASSET-BACKED LOAN</p>
+                <h2>Invoice #1042</h2>
+              </div>
+              <span class="example-label">example</span>
+            </div>
+            <div class="progress-track" aria-label="Loan progress: Borrow">
+              <div class="progress-step complete"><span class="progress-dot">✓</span><span>Asset</span></div>
+              <div class="progress-step complete"><span class="progress-dot">✓</span><span>KYC</span></div>
+              <div class="progress-step complete"><span class="progress-dot">✓</span><span>Deposit</span></div>
+              <div class="progress-step current"><span class="progress-dot">4</span><span>Borrow</span></div>
+              <div class="progress-step"><span class="progress-dot">5</span><span>Repay</span></div>
+              <div class="progress-step"><span class="progress-dot">6</span><span>Release</span></div>
+            </div>
+            <div class="loan-stats">
+              <div class="loan-stat"><span class="mono-label">COLLATERAL</span><strong>Invoice cell</strong></div>
+              <div class="loan-stat"><span class="mono-label">LOAN</span><strong>8,000 CKB</strong></div>
+              <div class="loan-stat"><span class="mono-label">REPAY BY</span><strong>#22,900,000</strong></div>
+            </div>
+            <div class="attested-chip"><span class="chip-dot"></span>KYC attested</div>
+          </article>
+          <p class="visual-caption">A fixed-term loan, represented as CKB Cells.</p>
         </div>
       </section>
 
@@ -111,7 +135,7 @@
       </section>
 
       <!-- MAIN LENDING WORKSPACE -->
-      <section class="lending-workspace-grid">
+      <section class="lending-workspace-grid" id="how-it-works">
         <!-- LEFT: LIFECYCLE CONTROLLER CARD -->
         <div class="workspace-card lifecycle-card">
           <div class="card-header">
@@ -579,6 +603,38 @@ Cell Dep:  0x02fa48cc3bed363df962b125f4fccf15e2869835c3c6af63c59cd1f760ae684d:1<
     </div>
   </div>
 
+  <!-- MODAL: CONNECT WALLET -->
+  <div class="modal-backdrop" id="connectModal" role="dialog" aria-modal="true" aria-labelledby="modalConnectTitle" hidden>
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalConnectTitle">Connect a wallet</h3>
+        <button class="modal-close-btn" id="closeConnectModalBtn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <button class="wallet-option" id="btnConnectJoyId">
+          <span class="wallet-option-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path><path d="M6 21v-1a6 6 0 0 1 12 0v1"></path></svg>
+          </span>
+          <span class="wallet-option-text">
+            <strong>JoyID</strong>
+            <small>Passkey wallet · CKB testnet</small>
+          </span>
+          <span class="wallet-option-tag">RECOMMENDED</span>
+        </button>
+        <button class="wallet-option" id="btnConnectDemo">
+          <span class="wallet-option-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+          </span>
+          <span class="wallet-option-text">
+            <strong>Demo wallet</strong>
+            <small>Generated locally · no signing</small>
+          </span>
+        </button>
+        <p class="wallet-option-error" id="connectError" hidden></p>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: WALLET DETAILS -->
   <div class="modal-backdrop" id="walletModal" role="dialog" aria-modal="true" aria-labelledby="modalWalletTitle" hidden>
     <div class="modal-card">
@@ -601,6 +657,10 @@ Cell Dep:  0x02fa48cc3bed363df962b125f4fccf15e2869835c3c6af63c59cd1f760ae684d:1<
           <div class="spec-row">
             <dt class="spec-term">Network</dt>
             <dd class="spec-value">CKB Testnet (Pudge)</dd>
+          </div>
+          <div class="spec-row">
+            <dt class="spec-term">Provider</dt>
+            <dd class="spec-value" id="walletProviderVal">Demo wallet</dd>
           </div>
           <div class="spec-row">
             <dt class="spec-term">Short Hash</dt>
