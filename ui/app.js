@@ -270,7 +270,23 @@ const proofStatusText = document.getElementById("proofStatusText");
 const proofHashVal = document.getElementById("proofHashVal");
 const proofBlockVal = document.getElementById("proofBlockVal");
 const proofCyclesVal = document.getElementById("proofCyclesVal");
-const btnInspectCurrentTx = document.getElementById("btnInspectCurrentTx");
+
+// Stage Upload Elements (Upload Document in Asset, Upload Id in KYC)
+const stageUploadWrap = document.getElementById("stageUploadWrap");
+const stageFileInput = document.getElementById("stageFileInput");
+const stageUploadBtn = document.getElementById("stageUploadBtn");
+const stageUploadLabel = document.getElementById("stageUploadLabel");
+const stageUploadIconBox = document.getElementById("stageUploadIconBox");
+const stageUploadPreview = document.getElementById("stageUploadPreview");
+const stageUploadFileName = document.getElementById("stageUploadFileName");
+const stageUploadMeta = document.getElementById("stageUploadMeta");
+const stageUploadRemoveBtn = document.getElementById("stageUploadRemoveBtn");
+
+// Track uploaded files per stage (Asset document for Step 1, KYC ID for Step 2)
+const uploadedStageFiles = {
+  1: null,
+  2: null
+};
 
 // Metrics
 const metricCollateralVal = document.getElementById("metricCollateralVal");
@@ -452,6 +468,60 @@ async function renderStep(step) {
     }
   } catch (err) {
     proofStatusText.textContent = "CACHED ON-CHAIN";
+  }
+
+  // Update stage-specific upload widget (Asset = Upload document, KYC = Upload Id)
+  updateUploadUI(step);
+}
+
+function updateUploadUI(step) {
+  if (!stageUploadWrap) return;
+
+  if (step === 1 || step === 2) {
+    stageUploadWrap.style.display = "block";
+    const file = uploadedStageFiles[step];
+
+    if (file) {
+      stageUploadBtn.style.display = "none";
+      stageUploadPreview.style.display = "flex";
+      stageUploadFileName.textContent = file.name;
+      stageUploadFileName.title = file.name;
+      stageUploadMeta.textContent = `(${file.size})`;
+    } else {
+      stageUploadBtn.style.display = "flex";
+      stageUploadPreview.style.display = "none";
+
+      if (step === 1) {
+        stageUploadLabel.textContent = "Upload document";
+        if (stageFileInput) stageFileInput.accept = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.json";
+        if (stageUploadIconBox) {
+          stageUploadIconBox.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <polyline points="9 15 12 12 15 15"></polyline>
+            </svg>
+          `;
+        }
+      } else if (step === 2) {
+        stageUploadLabel.textContent = "Upload Id";
+        if (stageFileInput) stageFileInput.accept = ".pdf,.png,.jpg,.jpeg";
+        if (stageUploadIconBox) {
+          stageUploadIconBox.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <circle cx="9" cy="10" r="2"></circle>
+              <line x1="15" y1="8" x2="17" y2="8"></line>
+              <line x1="15" y1="12" x2="17" y2="12"></line>
+              <line x1="7" y1="16" x2="17" y2="16"></line>
+            </svg>
+          `;
+        }
+      }
+    }
+  } else {
+    stageUploadWrap.style.display = "none";
   }
 }
 
@@ -866,11 +936,47 @@ resetFlowBtn.addEventListener("click", () => {
   showToast("Lifecycle reset to Step 1");
 });
 
-// Inspect current step tx button
-btnInspectCurrentTx.addEventListener("click", () => {
-  const txHash = STATE_DATA[currentStep].txHash;
-  inspectTransaction(txHash);
-});
+// Stage file upload listeners
+if (stageUploadBtn && stageFileInput) {
+  stageUploadBtn.addEventListener("click", () => {
+    stageFileInput.click();
+  });
+
+  stageFileInput.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      uploadedStageFiles[currentStep] = {
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`
+      };
+      updateUploadUI(currentStep);
+      if (currentStep === 1) {
+        showToast(`Document "${file.name}" uploaded for Asset claim`);
+      } else if (currentStep === 2) {
+        showToast(`ID "${file.name}" uploaded for KYC verification`);
+      }
+    }
+    stageFileInput.value = "";
+  });
+}
+
+if (stageUploadRemoveBtn) {
+  stageUploadRemoveBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    uploadedStageFiles[currentStep] = null;
+    updateUploadUI(currentStep);
+    showToast("Uploaded file removed");
+  });
+}
+
+// Fallback inspect current step tx button (if present)
+const btnInspectCurrentTx = document.getElementById("btnInspectCurrentTx");
+if (btnInspectCurrentTx) {
+  btnInspectCurrentTx.addEventListener("click", () => {
+    const txHash = STATE_DATA[currentStep].txHash;
+    inspectTransaction(txHash);
+  });
+}
 
 // Copy proof hash on click
 proofHashVal.addEventListener("click", () => {
