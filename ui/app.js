@@ -407,6 +407,32 @@ const cellLockVal = document.getElementById("cellLockVal");
 const txTableBody = document.getElementById("txTableBody");
 const toastContainer = document.getElementById("toastContainer");
 
+// Position the stepper lines between the first and last circle centers,
+// and fill the progress line up to the current step's circle.
+function layoutStepperLines() {
+  const track = stepperProgressBar.parentElement;
+  const lineBg = track.querySelector(".stepper-line-bg");
+  const circles = track.querySelectorAll(".step-circle");
+  if (!circles.length) return;
+
+  const trackRect = track.getBoundingClientRect();
+  const centerX = (el) => {
+    const r = el.getBoundingClientRect();
+    return r.left + r.width / 2 - trackRect.left + track.scrollLeft;
+  };
+  const first = centerX(circles[0]);
+  const last = centerX(circles[circles.length - 1]);
+  const current = centerX(circles[Math.min(currentStep, circles.length) - 1]);
+
+  lineBg.style.left = `${first}px`;
+  lineBg.style.right = "auto";
+  lineBg.style.width = `${last - first}px`;
+  stepperProgressBar.style.left = `${first}px`;
+  stepperProgressBar.style.width = `${current - first}px`;
+}
+
+window.addEventListener("resize", layoutStepperLines);
+
 async function renderStep(step) {
   currentStep = step;
   const data = STATE_DATA[step];
@@ -427,8 +453,7 @@ async function renderStep(step) {
   metricTermSub.textContent = data.termSub;
 
   // Stepper progress bar
-  const pct = Math.min(100, Math.max(0, ((step - 1) / 5) * 100));
-  stepperProgressBar.style.width = `${pct}%`;
+  layoutStepperLines();
 
   // Stepper circle states
   for (let i = 1; i <= 6; i++) {
@@ -459,7 +484,9 @@ async function renderStep(step) {
     const txData = await fetchOnChainTx(data.txHash);
     if (txData && txData.tx_status) {
       proofStatusText.textContent = "COMMITTED ON TESTNET";
-      proofBlockVal.textContent = txData.tx_status.block_hash ? `${txData.tx_status.block_hash.slice(0, 10)}...` : "Confirmed";
+      proofBlockVal.textContent = txData.tx_status.block_number
+        ? `#${parseInt(txData.tx_status.block_number, 16).toLocaleString()}`
+        : "Confirmed";
       if (txData.cycles) {
         proofCyclesVal.textContent = parseInt(txData.cycles, 16).toLocaleString();
       }
