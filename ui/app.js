@@ -249,7 +249,7 @@ const TRANSACTIONS = [
   }
 ];
 
-let currentStep = 4;
+let currentStep = 1;
 let selectedAsset = "receipt";
 let walletConnected = false;
 let isCreatingWallet = false;
@@ -1112,6 +1112,6 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Initial boot
-renderStep(4);
+renderStep(1);
 fetchTipBlockNumber();
 setInterval(fetchTipBlockNumber, 25000);
