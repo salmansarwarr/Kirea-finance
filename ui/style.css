@@ -1732,10 +1732,12 @@ body {
 /* STAGE UPLOAD COMPONENT */
 .stage-upload-wrap {
   width: 100%;
+  grid-column: 1 / -1;
 }
 
 .btn-stage-upload {
   width: 100%;
+  box-sizing: border-box;
   border: 1px dashed #3a3a3a;
   color: var(--text-secondary);
   background: rgba(255, 255, 255, 0.02);
